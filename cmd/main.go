@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	assis2 "github.com/luizfsnunes/generator/assis"
+	"github.com/luizfsnunes/assis/assis"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -65,15 +65,15 @@ func generateSite(path string) error {
 	}
 	defer logger.Sync()
 
-	config := assis2.NewDefaultConfig(path)
+	config := assis.NewDefaultConfig(path)
 	plugins := []interface{}{
-		assis2.NewArticlePlugin(config, logger),
-		assis2.NewHTMLPlugin(config, logger),
-		assis2.NewStaticFilesPlugin(config, []string{".svg", ".js", ".png", ".jpg", ".jpeg", ".gif", ".css"}, logger),
-		assis2.NewMinifyPlugin(logger),
+		assis.NewArticlePlugin(config, logger),
+		assis.NewHTMLPlugin(config, logger),
+		assis.NewStaticFilesPlugin(config, []string{".svg", ".js", ".png", ".jpg", ".jpeg", ".gif", ".css"}, logger),
+		assis.NewMinifyPlugin(logger),
 	}
 
-	assis := assis2.NewAssis(config, plugins, logger)
+	assis := assis.NewAssis(config, plugins, logger)
 	if err := assis.LoadFiles(); err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func initProject(path string) error {
 		return err
 	}
 
-	config := assis2.NewDefaultConfig(filepath.ToSlash(path))
+	config := assis.NewDefaultConfig(filepath.ToSlash(path))
 	if err := os.Mkdir(config.Output, 0600); err != nil {
 		return err
 	}
