@@ -1,0 +1,11 @@
+{{template "layout" .}}
+
+{{define "title"}}{{ .Title }}{{end}}
+
+{{define "body"}}
+<div>
+  <h1>{{ .Title }}</h1>
+  <div><span>{{ .Date }}</span></div>
+  {{ .Content }}
+</div>
+{{end}}
