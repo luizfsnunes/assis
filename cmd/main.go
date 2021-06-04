@@ -58,12 +58,17 @@ func main() {
 	os.Exit(0)
 }
 
-func generateSite(path string) error {
+func buildZap() *zap.Logger {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer logger.Sync()
+	return logger
+}
+
+func generateSite(path string) error {
+	logger := buildZap()
 
 	config := assis.NewDefaultConfig(path)
 	plugins := []interface{}{
@@ -73,11 +78,11 @@ func generateSite(path string) error {
 		assis.NewMinifyPlugin(logger),
 	}
 
-	assis := assis.NewAssis(config, plugins, logger)
-	if err := assis.LoadFiles(); err != nil {
+	assisGenerator := assis.NewAssis(config, plugins, logger)
+	if err := assisGenerator.LoadFiles(); err != nil {
 		return err
 	}
-	if err := assis.Generate(); err != nil {
+	if err := assisGenerator.Generate(); err != nil {
 		return err
 	}
 	return nil
@@ -103,7 +108,17 @@ func initProject(path string) error {
 }
 
 func serveStatic(path, port string) error {
-	http.Handle("/", http.FileServer(http.Dir(path)))
+	logger := buildZap()
+
+	loggingHandler := func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Info(r.URL.Path)
+			h.ServeHTTP(w, r)
+		})
+	}
+
+	http.Handle("/", loggingHandler(http.FileServer(http.Dir(path))))
+	fmt.Println("Started static server at http://localhost:" + port)
 
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
