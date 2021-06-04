@@ -22,6 +22,11 @@ func main() {
 	init := flag.NewFlagSet("init", flag.ExitOnError)
 	initPath := init.String("path", "", "Project path")
 
+	if len(os.Args) <= 1 {
+		fmt.Println("no command supplied. expected: init, generate, serve")
+		os.Exit(1)
+	}
+
 	switch os.Args[1] {
 	case "serve":
 		if err := serveCmd.Parse(os.Args[2:]); err != nil {
