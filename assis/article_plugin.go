@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+type Tags []string
+
 type Article struct {
 	ID        string
 	Permalink string
@@ -24,7 +26,7 @@ type Article struct {
 	Template  string
 	Pin       bool
 	Published bool
-	Tags      []string
+	Tags      Tags
 	Authors   []string
 }
 
@@ -111,6 +113,7 @@ func (m ArticlePlugin) OnRegisterCustomFunction() map[string]interface{} {
 		"articleCollection": m.articleCollection,
 		"pinCollection":     m.pinCollection,
 		"generateSearch":    m.generateSearch,
+		"tags":              m.tags,
 		"limit":             m.limit,
 		"orderByDate":       m.orderByDate,
 	}
@@ -118,6 +121,24 @@ func (m ArticlePlugin) OnRegisterCustomFunction() map[string]interface{} {
 
 func (m ArticlePlugin) generateSearch(filters []string) string {
 	return strings.Join(filters, ",")
+}
+
+func (m ArticlePlugin) tags(articles []Article) Tags {
+	allTags := map[string]string{}
+	for _, article := range articles {
+		for _, tag := range article.Tags {
+			if _, ok := allTags[tag]; !ok {
+				allTags[tag] = tag
+			}
+		}
+	}
+
+	tags := Tags{}
+	for _, tag := range allTags {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags
 }
 
 func (m ArticlePlugin) getCollection(path string, pin bool) []Article {
