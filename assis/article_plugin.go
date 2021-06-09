@@ -187,13 +187,12 @@ func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates 
 				return err
 			}
 
-			templateFile, err := filepath.Abs(fmt.Sprintf("%s\\%s", m.config.Template, parsed.Template))
+			templateFile, err := filepath.Abs(fmt.Sprintf("%s\\%s", m.config.Template.Path, parsed.Template))
 			if err != nil {
 				return err
 			}
 
-			allTemplates := append(templates, templateFile)
-			targetTemplate, err := t.GetTemplate().ParseFiles(allTemplates...)
+			targetTemplate, err := t.GetTemplate().ParseFiles(append(templates.baseOrdered, templateFile)...)
 			if err != nil {
 				return err
 			}

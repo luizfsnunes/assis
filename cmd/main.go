@@ -78,7 +78,7 @@ func generateSite(path string) error {
 	}
 
 	assisGenerator := assis.NewAssis(config, plugins, logger)
-	if err := assisGenerator.LoadFiles(); err != nil {
+	if err := assisGenerator.LoadFilesAsync(); err != nil {
 		return err
 	}
 	if err := assisGenerator.Generate(); err != nil {
