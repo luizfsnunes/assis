@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -23,6 +23,8 @@ func main() {
 		fmt.Println("no command supplied. expected: init, generate, serve")
 		os.Exit(1)
 	}
+
+	start := time.Now()
 
 	switch os.Args[1] {
 	case "serve":
@@ -48,6 +50,10 @@ func main() {
 		fmt.Println("invalid command")
 		os.Exit(1)
 	}
+
+	elapsed := time.Since(start)
+	fmt.Printf("Took %s to execute the command.", elapsed)
+
 	os.Exit(0)
 }
 
