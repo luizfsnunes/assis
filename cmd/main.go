@@ -19,9 +19,6 @@ func main() {
 	generate := flag.NewFlagSet("generate", flag.ExitOnError)
 	generatePath := generate.String("path", "", "Project path")
 
-	init := flag.NewFlagSet("init", flag.ExitOnError)
-	initPath := init.String("path", "", "Project path")
-
 	if len(os.Args) <= 1 {
 		fmt.Println("no command supplied. expected: init, generate, serve")
 		os.Exit(1)
@@ -44,15 +41,6 @@ func main() {
 		}
 		fmt.Println(generatePath)
 		if err := generateSite(*generatePath); err != nil {
-			fmt.Print(err.Error())
-			os.Exit(1)
-		}
-	case "init":
-		if err := init.Parse(os.Args[2:]); err != nil {
-			fmt.Print(err.Error())
-			os.Exit(1)
-		}
-		if err := initProject(*initPath); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
@@ -88,25 +76,6 @@ func generateSite(path string) error {
 		return err
 	}
 	if err := assisGenerator.Generate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func initProject(path string) error {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	config := assis.NewDefaultConfig(filepath.ToSlash(path))
-	if err := os.Mkdir(config.Output, 0600); err != nil {
-		return err
-	}
-	if err := os.Mkdir(config.Template, 0600); err != nil {
-		return err
-	}
-	if err := os.Mkdir(config.Content, 0600); err != nil {
 		return err
 	}
 	return nil
