@@ -6,7 +6,6 @@ import (
 	"github.com/luizfsnunes/assis/assis"
 	"go.uber.org/zap"
 	"log"
-	"net/http"
 	"os"
 	"time"
 )
@@ -32,7 +31,8 @@ func main() {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		if err := serveStatic(*pathServe, *port); err != nil {
+		server := assis.NewStaticServer(buildZap(), *port)
+		if err := server.ListenAndServe(*pathServe); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
@@ -82,26 +82,6 @@ func generateSite(path string) error {
 		return err
 	}
 	if err := assisGenerator.Generate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func serveStatic(path, port string) error {
-	logger := buildZap()
-
-	loggingHandler := func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Info(r.URL.Path)
-			h.ServeHTTP(w, r)
-		})
-	}
-
-	http.Handle("/", loggingHandler(http.FileServer(http.Dir(path))))
-	fmt.Println("Started static server at http://localhost:" + port)
-
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
 		return err
 	}
 	return nil
