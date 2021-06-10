@@ -3,6 +3,7 @@ package assis
 import (
 	"go.uber.org/zap"
 	"html/template"
+	"path/filepath"
 )
 
 type HTMLPlugin struct {
@@ -35,11 +36,12 @@ func (h HTMLPlugin) Truncate(size int, str template.HTML) template.HTML {
 
 func (h HTMLPlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	h.logger.Info("Start HTML rendering")
-	allTemplates := templates
 	for _, container := range siteFiles {
 		files := container.FilterExt([]string{HTML})
 		for _, file := range files {
-			allTemplates = append(allTemplates, container.FullFilename(file))
+			filename := filepath.ToSlash(container.FullFilename(file))
+
+			allTemplates := append(templates.GetTemplatesByDir(filename), filename)
 			targetTemplate, err := t.GetTemplate().ParseFiles(allTemplates...)
 
 			target, err := CreateTargetFile(container.OutputFilename(file))

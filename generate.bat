@@ -1,0 +1,1 @@
+assis.exe generate -path=_site/

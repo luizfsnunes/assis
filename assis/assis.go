@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const HTML = ".html"
@@ -27,7 +28,40 @@ type PluginCustomFunction interface {
 	OnRegisterCustomFunction() map[string]interface{}
 }
 
-type Templates []string
+type Templates struct {
+	cfg          Config
+	baseTemplate string
+	partials     []string
+	files        []string
+	baseOrdered  []string
+}
+
+func NewTemplates(config Config) Templates {
+	return Templates{
+		cfg:         config,
+		partials:    []string{},
+		files:       []string{},
+		baseOrdered: []string{},
+	}
+}
+
+func (t *Templates) orderBaseTemplate() {
+	t.baseOrdered = []string{t.baseTemplate}
+	t.baseOrdered = append(t.baseOrdered, t.partials...)
+}
+func (t *Templates) GetTemplatesByDir(fileToRender string) []string {
+	fn := func(path string) int {
+		return len(strings.Split(filepath.ToSlash(filepath.Dir(path)), "/"))
+	}
+
+	var out []string
+	for _, tpl := range t.files {
+		if fn(fileToRender) == fn(tpl) {
+			out = append(out, tpl)
+		}
+	}
+	return append(t.baseOrdered, out...)
+}
 
 type File string
 
@@ -109,57 +143,99 @@ func NewAssis(config Config, plugins []interface{}, logger *zap.Logger) Assis {
 		plugins:   plugins,
 		container: SiteFiles{},
 		logger:    logger,
+		templates: NewTemplates(config),
 	}
 }
 
-func (a *Assis) LoadFiles() error {
+func (a *Assis) LoadTemplates(path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+	if d.IsDir() || filepath.Ext(path) != HTML {
+		return nil
+	}
+
+	if filepath.ToSlash(d.Name()) == a.config.Template.Layout {
+		a.templates.baseTemplate = filepath.ToSlash(path)
+		a.logger.Info(fmt.Sprintf("Loaded base template: %s", path))
+		return nil
+	}
+
+	if strings.Contains(filepath.ToSlash(path), a.config.Template.Partials) {
+		a.templates.partials = append(a.templates.partials, path)
+		a.logger.Info(fmt.Sprintf("Loaded partial: %s", path))
+		return nil
+	}
+
+	a.templates.files = append(a.templates.files, filepath.ToSlash(path))
+	a.logger.Info(fmt.Sprintf("Loaded template: %s", path))
+	return nil
+}
+
+func (a *Assis) LoadContent(path string, d fs.DirEntry, err error) error {
+	dirname := filepath.ToSlash(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	if d.IsDir() {
+		return nil
+	}
+	if a.container.Get(dirname) == nil {
+		a.container.Add(newFileContainer(a.config.Output, a.config.Content, dirname), dirname)
+	}
+	a.container.Get(dirname).AddOnEntry(d.Name())
+	return nil
+}
+
+func (a *Assis) LoadFilesAsync() error {
 	a.logger.Info("Run LoadFiles task")
-	err := filepath.WalkDir(a.config.Template,
-		func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || filepath.Ext(path) != HTML {
-				return nil
-			}
 
-			a.templates = append(a.templates, filepath.ToSlash(path))
-			a.logger.Info(fmt.Sprintf("Loaded template: %s", path))
-			return nil
-		})
-	if err != nil {
-		return err
-	}
+	fatalErrors := make(chan error)
+	wgDone := make(chan bool)
+	wg := sync.WaitGroup{}
 
-	err = filepath.WalkDir(a.config.Content,
-		func(path string, d fs.DirEntry, err error) error {
-			dirname := filepath.ToSlash(filepath.Dir(path))
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if a.container.Get(dirname) == nil {
-				a.container.Add(newFileContainer(a.config.Output, a.config.Content, dirname), dirname)
-			}
-			a.container.Get(dirname).AddOnEntry(d.Name())
-			return nil
-		})
-	if err != nil {
-		return err
-	}
+	wg.Add(2)
 
-	a.logger.Info("Run AfterLoadFiles")
-	for _, plugin := range a.plugins {
-		switch plugin := plugin.(type) {
-		case PluginLoadFiles:
-			if err := plugin.AfterLoadFiles(a.container); err != nil {
-				return err
-			}
-			break
+	go func() {
+		err := filepath.WalkDir(a.config.Template.Path, a.LoadTemplates)
+		if err != nil {
+			fatalErrors <- err
 		}
+		a.templates.orderBaseTemplate()
+		wg.Done()
+	}()
+
+	go func() {
+		err := filepath.WalkDir(a.config.Content, a.LoadContent)
+		if err != nil {
+			fatalErrors <- err
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	select {
+	case <-wgDone:
+		a.logger.Info("Run AfterLoadFiles")
+		for _, plugin := range a.plugins {
+			switch plugin := plugin.(type) {
+			case PluginLoadFiles:
+				if err := plugin.AfterLoadFiles(a.container); err != nil {
+					return err
+				}
+				break
+			}
+		}
+		break
+	case err := <-fatalErrors:
+		close(fatalErrors)
+		return err
 	}
+
 	return nil
 }
 

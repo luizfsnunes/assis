@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 )
 
 func main() {
@@ -19,8 +19,12 @@ func main() {
 	generate := flag.NewFlagSet("generate", flag.ExitOnError)
 	generatePath := generate.String("path", "", "Project path")
 
-	init := flag.NewFlagSet("init", flag.ExitOnError)
-	initPath := init.String("path", "", "Project path")
+	if len(os.Args) <= 1 {
+		fmt.Println("no command supplied. expected: init, generate, serve")
+		os.Exit(1)
+	}
+
+	start := time.Now()
 
 	switch os.Args[1] {
 	case "serve":
@@ -42,28 +46,28 @@ func main() {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-	case "init":
-		if err := init.Parse(os.Args[2:]); err != nil {
-			fmt.Print(err.Error())
-			os.Exit(1)
-		}
-		if err := initProject(*initPath); err != nil {
-			fmt.Print(err.Error())
-			os.Exit(1)
-		}
 	default:
 		fmt.Println("invalid command")
 		os.Exit(1)
 	}
+
+	elapsed := time.Since(start)
+	fmt.Printf("Took %s to execute the command.", elapsed)
+
 	os.Exit(0)
 }
 
-func generateSite(path string) error {
+func buildZap() *zap.Logger {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer logger.Sync()
+	return logger
+}
+
+func generateSite(path string) error {
+	logger := buildZap()
 
 	config := assis.NewDefaultConfig(path)
 	plugins := []interface{}{
@@ -73,37 +77,28 @@ func generateSite(path string) error {
 		assis.NewMinifyPlugin(logger),
 	}
 
-	assis := assis.NewAssis(config, plugins, logger)
-	if err := assis.LoadFiles(); err != nil {
+	assisGenerator := assis.NewAssis(config, plugins, logger)
+	if err := assisGenerator.LoadFilesAsync(); err != nil {
 		return err
 	}
-	if err := assis.Generate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func initProject(path string) error {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	config := assis.NewDefaultConfig(filepath.ToSlash(path))
-	if err := os.Mkdir(config.Output, 0600); err != nil {
-		return err
-	}
-	if err := os.Mkdir(config.Template, 0600); err != nil {
-		return err
-	}
-	if err := os.Mkdir(config.Content, 0600); err != nil {
+	if err := assisGenerator.Generate(); err != nil {
 		return err
 	}
 	return nil
 }
 
 func serveStatic(path, port string) error {
-	http.Handle("/", http.FileServer(http.Dir(path)))
+	logger := buildZap()
+
+	loggingHandler := func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Info(r.URL.Path)
+			h.ServeHTTP(w, r)
+		})
+	}
+
+	http.Handle("/", loggingHandler(http.FileServer(http.Dir(path))))
+	fmt.Println("Started static server at http://localhost:" + port)
 
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
