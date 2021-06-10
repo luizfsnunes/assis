@@ -25,13 +25,15 @@ func main() {
 
 	start := time.Now()
 
+	logger := buildZap()
+
 	switch os.Args[1] {
 	case "serve":
 		if err := serveCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		server := assis.NewStaticServer(buildZap(), *port)
+		server := assis.NewStaticServer(logger, *port)
 		if err := server.ListenAndServe(*pathServe); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
@@ -42,7 +44,7 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(generatePath)
-		if err := generateSite(*generatePath); err != nil {
+		if err := generateSite(*generatePath, logger); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
@@ -59,16 +61,14 @@ func main() {
 
 func buildZap() *zap.Logger {
 	logger, err := zap.NewDevelopment()
+	defer logger.Sync()
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
-	defer logger.Sync()
 	return logger
 }
 
-func generateSite(path string) error {
-	logger := buildZap()
-
+func generateSite(path string, logger *zap.Logger) error {
 	config := assis.NewDefaultConfig(path)
 	plugins := []interface{}{
 		assis.NewArticlePlugin(config, logger),
