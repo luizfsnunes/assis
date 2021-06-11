@@ -203,30 +203,35 @@ func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates 
 			m.files[container.entry] = append(m.files[container.entry], parsed)
 
 			output := strings.Replace(container.OutputFilename(file), string(file), parsed.ID+".html", 1)
-			target, err := CreateTargetFile(output)
+
+			err = func() error {
+				target, err := CreateTargetFile(output)
+				defer target.Close()
+				if err != nil {
+					return err
+				}
+
+				templateFile, err := filepath.Abs(fmt.Sprintf("%s\\%s", m.config.Template.Path, parsed.Template))
+				if err != nil {
+					return err
+				}
+
+				targetTemplate, err := t.GetTemplate().ParseFiles(append(templates.baseOrdered, templateFile)...)
+				if err != nil {
+					return err
+				}
+
+				if err = targetTemplate.ExecuteTemplate(target, "layout", parsed); err != nil {
+					return err
+				}
+
+				m.logger.Info("Rendered markdown to: " + target.Name())
+				return nil
+			}()
+
 			if err != nil {
 				return err
 			}
-
-			templateFile, err := filepath.Abs(fmt.Sprintf("%s\\%s", m.config.Template.Path, parsed.Template))
-			if err != nil {
-				return err
-			}
-
-			targetTemplate, err := t.GetTemplate().ParseFiles(append(templates.baseOrdered, templateFile)...)
-			if err != nil {
-				return err
-			}
-
-			if err = targetTemplate.ExecuteTemplate(target, "layout", parsed); err != nil {
-				return err
-			}
-
-			if err = target.Close(); err != nil {
-				return err
-			}
-
-			m.logger.Info("Rendered markdown to: " + target.Name())
 		}
 	}
 	m.logger.Info("Finished Article rendering")

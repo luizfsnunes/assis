@@ -14,8 +14,9 @@ import (
 )
 
 type MinifyPlugin struct {
-	minify *minify.M
-	logger *zap.Logger
+	minify     *minify.M
+	logger     *zap.Logger
+	mediaTypes map[string]string
 }
 
 func NewMinifyPlugin(logger *zap.Logger) MinifyPlugin {
@@ -25,40 +26,48 @@ func NewMinifyPlugin(logger *zap.Logger) MinifyPlugin {
 	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
 
 	return MinifyPlugin{
-		minify: m,
-		logger: logger,
+		minify:     m,
+		logger:     logger,
+		mediaTypes: map[string]string{".html": "text/html", ".css": "text/css", ".js": "application/javascript"},
 	}
+}
+
+func (m MinifyPlugin) AllowedMediaType(filename string) string {
+	return m.mediaTypes[filepath.Ext(filename)]
 }
 
 func (m MinifyPlugin) AfterGeneratedFiles(files []string) error {
 	m.logger.Info("Start minifying")
-	mediaTypes := map[string]string{".html": "text/html", ".css": "text/css", ".js": "application/javascript"}
 	for _, f := range files {
-		content, err := ioutil.ReadFile(f)
-		if err != nil {
-			return err
-		}
-
-		media := mediaTypes[filepath.Ext(f)]
+		media := m.AllowedMediaType(f)
 		if media == "" {
 			continue
 		}
 
-		b, err := m.minify.Bytes(media, content)
-		if err != nil {
-			return err
-		}
+		return func() error {
+			content, err := ioutil.ReadFile(f)
+			if err != nil {
+				return err
+			}
 
-		write, err := os.Create(f)
-		if err != nil {
-			return err
-		}
-		if _, err := write.WriteString(string(b)); err != nil {
-			return err
-		}
-		write.Close()
+			b, err := m.minify.Bytes(media, content)
+			if err != nil {
+				return err
+			}
 
-		m.logger.Info(fmt.Sprintf("Minified: %s", f))
+			write, err := os.Create(f)
+			defer write.Close()
+
+			if err != nil {
+				return err
+			}
+			if _, err := write.WriteString(string(b)); err != nil {
+				return err
+			}
+
+			m.logger.Info(fmt.Sprintf("Minified: %s", f))
+			return nil
+		}()
 	}
 	m.logger.Info("Finished minifying")
 	return nil

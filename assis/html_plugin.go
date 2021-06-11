@@ -44,20 +44,23 @@ func (h HTMLPlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Tem
 			allTemplates := append(templates.GetTemplatesByDir(filename), filename)
 			targetTemplate, err := t.GetTemplate().ParseFiles(allTemplates...)
 
-			target, err := CreateTargetFile(container.OutputFilename(file))
+			err = func() error {
+				target, err := CreateTargetFile(container.OutputFilename(file))
+				defer target.Close()
+				if err != nil {
+					return err
+				}
+
+				if err = targetTemplate.ExecuteTemplate(target, "layout", nil); err != nil {
+					return err
+				}
+
+				h.logger.Info("Rendered file to " + target.Name())
+				return nil
+			}()
 			if err != nil {
 				return err
 			}
-
-			if err = targetTemplate.ExecuteTemplate(target, "layout", nil); err != nil {
-				return err
-			}
-
-			if err = target.Close(); err != nil {
-				return err
-			}
-
-			h.logger.Info("Rendered file to " + target.Name())
 		}
 	}
 	h.logger.Info("Finished HTML rendering")
