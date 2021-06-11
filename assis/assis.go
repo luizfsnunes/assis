@@ -194,28 +194,29 @@ func (a *Assis) LoadFilesAsync() error {
 	wgDone := make(chan bool)
 	wg := sync.WaitGroup{}
 
-	wg.Add(2)
-
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := filepath.WalkDir(a.config.Template.Path, a.LoadTemplates)
 		if err != nil {
 			fatalErrors <- err
 		}
 		a.templates.orderBaseTemplate()
-		wg.Done()
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := filepath.WalkDir(a.config.Content, a.LoadContent)
 		if err != nil {
 			fatalErrors <- err
 		}
-		wg.Done()
 	}()
 
 	go func() {
 		wg.Wait()
 		close(wgDone)
+		close(fatalErrors)
 	}()
 
 	select {
@@ -232,7 +233,6 @@ func (a *Assis) LoadFilesAsync() error {
 		}
 		break
 	case err := <-fatalErrors:
-		close(fatalErrors)
 		return err
 	}
 
