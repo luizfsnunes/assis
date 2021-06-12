@@ -2,27 +2,32 @@ package assis
 
 import (
 	"context"
+	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
 
 type StaticServe struct {
-	logger *zap.Logger
-	port   string
+	logger  *zap.Logger
+	watcher *fsnotify.Watcher
+	listen  func() error
+	config  Config
 }
 
-func NewStaticServer(logger *zap.Logger, port string) StaticServe {
+func NewStaticServer(config Config, logger *zap.Logger, listen func() error) StaticServe {
 	return StaticServe{
 		logger: logger,
-		port:   ":" + port,
+		config: config,
+		listen: listen,
 	}
 }
 
-func (s StaticServe) ListenAndServe(path string) error {
+func (s StaticServe) ListenAndServe() error {
 	loggingHandler := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s.logger.Info(r.URL.Path)
@@ -30,16 +35,25 @@ func (s StaticServe) ListenAndServe(path string) error {
 		})
 	}
 
-	http.Handle("/", loggingHandler(http.FileServer(http.Dir(path))))
+	abs, _ := filepath.Abs(s.config.Output)
+
+	http.Handle("/", loggingHandler(http.FileServer(http.Dir(abs))))
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		if err := http.ListenAndServe(s.port, nil); err != nil && err != http.ErrServerClosed {
+		if err := s.Watch(); err != nil {
+			s.logger.Error(err.Error())
+		}
+	}()
+
+	go func() {
+		if err := http.ListenAndServe(":"+s.config.Server.Port, nil); err != nil && err != http.ErrServerClosed {
 			s.logger.Fatal("listen: %s\n", zap.Error(err))
 		}
 	}()
+
 	s.logger.Info("Server Started")
 
 	<-done
@@ -51,5 +65,47 @@ func (s StaticServe) ListenAndServe(path string) error {
 	}()
 	s.logger.Info("Server Exited Properly")
 
+	return nil
+}
+
+func (s StaticServe) watchDir(path string, fi os.FileInfo, err error) error {
+	if fi.Mode().IsDir() {
+		return s.watcher.Add(path)
+	}
+	return nil
+}
+
+func (s StaticServe) Watch() error {
+	s.watcher, _ = fsnotify.NewWatcher()
+	defer s.watcher.Close()
+
+	abs, err := filepath.Abs(s.config.Content)
+	if err != nil {
+		return err
+	}
+
+	if err := filepath.Walk(abs, s.watchDir); err != nil {
+		return err
+	}
+
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			// watch for events
+			case event := <-s.watcher.Events:
+				if event.Op.String() == "REMOVE" {
+					s.logger.Info("File update")
+					if err := s.listen(); err != nil {
+						s.logger.Info(err.Error())
+					}
+				}
+			case err := <-s.watcher.Errors:
+				s.logger.Error(err.Error())
+			}
+		}
+	}()
+
+	<-done
 	return nil
 }
