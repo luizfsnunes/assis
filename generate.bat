@@ -1,1 +1,1 @@
-assis.exe generate -path=_site/
+assis.exe generate -config=_site/config.json

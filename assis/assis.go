@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const HTML = ".html"
@@ -29,14 +30,14 @@ type PluginCustomFunction interface {
 }
 
 type Templates struct {
-	cfg          Config
+	cfg          *Config
 	baseTemplate string
 	partials     []string
 	files        []string
 	baseOrdered  []string
 }
 
-func NewTemplates(config Config) Templates {
+func NewTemplates(config *Config) Templates {
 	return Templates{
 		cfg:         config,
 		partials:    []string{},
@@ -125,14 +126,14 @@ func (s SiteFiles) Get(entry string) *FileContainer {
 }
 
 type Assis struct {
-	config    Config
+	config    *Config
 	templates Templates
 	plugins   []interface{}
 	container SiteFiles
 	logger    *zap.Logger
 }
 
-func NewAssis(config Config, plugins []interface{}, logger *zap.Logger) Assis {
+func NewAssis(config *Config, plugins []interface{}, logger *zap.Logger) Assis {
 	logger.Info("Initializing generator")
 	logger.Info(fmt.Sprintf("Content dir: %s", config.Content))
 	logger.Info(fmt.Sprintf("Output dir: %s", config.Output))
@@ -194,28 +195,29 @@ func (a *Assis) LoadFilesAsync() error {
 	wgDone := make(chan bool)
 	wg := sync.WaitGroup{}
 
-	wg.Add(2)
-
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := filepath.WalkDir(a.config.Template.Path, a.LoadTemplates)
 		if err != nil {
 			fatalErrors <- err
 		}
 		a.templates.orderBaseTemplate()
-		wg.Done()
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := filepath.WalkDir(a.config.Content, a.LoadContent)
 		if err != nil {
 			fatalErrors <- err
 		}
-		wg.Done()
 	}()
 
 	go func() {
 		wg.Wait()
 		close(wgDone)
+		close(fatalErrors)
 	}()
 
 	select {
@@ -224,15 +226,17 @@ func (a *Assis) LoadFilesAsync() error {
 		for _, plugin := range a.plugins {
 			switch plugin := plugin.(type) {
 			case PluginLoadFiles:
+				start := time.Now()
 				if err := plugin.AfterLoadFiles(a.container); err != nil {
 					return err
 				}
+				elapsed := time.Since(start)
+				a.logger.Info(fmt.Sprintf("PluginLoadFiles took %s", elapsed))
 				break
 			}
 		}
 		break
 	case err := <-fatalErrors:
-		close(fatalErrors)
 		return err
 	}
 

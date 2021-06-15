@@ -6,16 +6,21 @@ import (
 
 type (
 	Config struct {
-		SiteRoot string `json:"site_root"`
-		Output   string `json:"output"`
-		Content  string `json:"content"`
-		Template Template
+		SiteRoot string   `json:"site_root"`
+		Output   string   `json:"output"`
+		Content  string   `json:"content"`
+		Template Template `json:"template"`
+		Server   Server   `json:"server"`
 	}
 
 	Template struct {
 		Path     string `json:"path"`
 		Partials string `json:"partials"`
 		Layout   string `json:"layout"`
+	}
+
+	Server struct {
+		Port string
 	}
 )
 
@@ -30,6 +35,9 @@ func NewDefaultConfig(siteRoot string) Config {
 			Path:     siteRoot + "/template",
 			Partials: siteRoot + "/template/partials",
 			Layout:   "layout.html",
+		},
+		Server: Server{
+			Port: "8080",
 		},
 	}
 }

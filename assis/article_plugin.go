@@ -2,6 +2,7 @@ package assis
 
 import (
 	"fmt"
+	"github.com/gammazero/workerpool"
 	"github.com/gomarkdown/markdown"
 	"github.com/gosimple/slug"
 	"go.uber.org/zap"
@@ -91,14 +92,14 @@ func newArticle(filename, relative string) (Article, error) {
 }
 
 type ArticlePlugin struct {
-	config    Config
+	config    *Config
 	templates map[string]*template.Template
 	files     map[string][]Article
 	name      string
 	logger    *zap.Logger
 }
 
-func NewArticlePlugin(config Config, logger *zap.Logger) ArticlePlugin {
+func NewArticlePlugin(config *Config, logger *zap.Logger) ArticlePlugin {
 	return ArticlePlugin{
 		config:    config,
 		templates: map[string]*template.Template{},
@@ -190,20 +191,44 @@ func (m ArticlePlugin) orderByDate(dir string, list []Article) []Article {
 
 func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	m.logger.Info("Start Article rendering")
+	wp := workerpool.New(2)
+	maxJobs := 0
 	for _, container := range siteFiles {
-		markdownFiles := container.FilterExt([]string{MD})
-		for _, file := range markdownFiles {
-			m.logger.Info("Read Article: " + container.FullFilename(file))
-			rel, _ := filepath.Rel(m.config.Content, container.entry)
-			parsed, err := newArticle(container.FullFilename(file), rel)
-			if err != nil {
-				return err
+		container := container
+		wp.Submit(func() {
+			if err := m.processContainer(container, t, templates); err != nil {
+				m.logger.Error(err.Error())
 			}
+		})
+		maxJobs += 1
+		if maxJobs == 4 {
+			maxJobs = 0
+			wp.StopWait()
+			wp = workerpool.New(2)
+		}
+	}
+	wp.StopWait()
+	m.logger.Info("Finished Article rendering")
+	return nil
+}
 
-			m.files[container.entry] = append(m.files[container.entry], parsed)
+func (m ArticlePlugin) processContainer(container *FileContainer, t AssisTemplate, templates Templates) error {
+	markdownFiles := container.FilterExt([]string{MD})
+	for _, file := range markdownFiles {
+		m.logger.Info("Read Article: " + container.FullFilename(file))
+		rel, _ := filepath.Rel(m.config.Content, container.entry)
+		parsed, err := newArticle(container.FullFilename(file), rel)
+		if err != nil {
+			return err
+		}
 
-			output := strings.Replace(container.OutputFilename(file), string(file), parsed.ID+".html", 1)
+		m.files[container.entry] = append(m.files[container.entry], parsed)
+
+		output := strings.Replace(container.OutputFilename(file), string(file), parsed.ID+".html", 1)
+
+		err = func() error {
 			target, err := CreateTargetFile(output)
+			defer target.Close()
 			if err != nil {
 				return err
 			}
@@ -222,13 +247,13 @@ func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates 
 				return err
 			}
 
-			if err = target.Close(); err != nil {
-				return err
-			}
-
 			m.logger.Info("Rendered markdown to: " + target.Name())
+			return nil
+		}()
+
+		if err != nil {
+			return err
 		}
 	}
-	m.logger.Info("Finished Article rendering")
 	return nil
 }
