@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const HTML = ".html"
@@ -225,9 +226,12 @@ func (a *Assis) LoadFilesAsync() error {
 		for _, plugin := range a.plugins {
 			switch plugin := plugin.(type) {
 			case PluginLoadFiles:
+				start := time.Now()
 				if err := plugin.AfterLoadFiles(a.container); err != nil {
 					return err
 				}
+				elapsed := time.Since(start)
+				a.logger.Info(fmt.Sprintf("PluginLoadFiles took %s", elapsed))
 				break
 			}
 		}
