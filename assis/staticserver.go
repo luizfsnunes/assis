@@ -16,10 +16,10 @@ type StaticServe struct {
 	logger  *zap.Logger
 	watcher *fsnotify.Watcher
 	listen  func() error
-	config  Config
+	config  *Config
 }
 
-func NewStaticServer(config Config, logger *zap.Logger, listen func() error) StaticServe {
+func NewStaticServer(config *Config, logger *zap.Logger, listen func() error) StaticServe {
 	return StaticServe{
 		logger: logger,
 		config: config,

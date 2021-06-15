@@ -62,24 +62,24 @@ func buildZap() *zap.Logger {
 	return logger
 }
 
-func buildConfig(configFile string) (assis.Config, error) {
+func buildConfig(configFile string) (*assis.Config, error) {
 	abs, err := filepath.Abs(configFile)
 	if err != nil {
-		return assis.Config{}, err
+		return nil, err
 	}
 
 	b, err := ioutil.ReadFile(abs)
 	if err != nil {
-		return assis.Config{}, err
+		return nil, err
 	}
-	var cfg assis.Config
+	var cfg *assis.Config
 	if err := json.Unmarshal(b, &cfg); err != nil {
-		return assis.Config{}, err
+		return nil, err
 	}
 	return cfg, nil
 }
 
-func generateSite(config assis.Config, logger *zap.Logger) error {
+func generateSite(config *assis.Config, logger *zap.Logger) error {
 	plugins := []interface{}{
 		assis.NewArticlePlugin(config, logger),
 		assis.NewHTMLPlugin(config, logger),

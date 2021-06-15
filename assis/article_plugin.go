@@ -91,14 +91,14 @@ func newArticle(filename, relative string) (Article, error) {
 }
 
 type ArticlePlugin struct {
-	config    Config
+	config    *Config
 	templates map[string]*template.Template
 	files     map[string][]Article
 	name      string
 	logger    *zap.Logger
 }
 
-func NewArticlePlugin(config Config, logger *zap.Logger) ArticlePlugin {
+func NewArticlePlugin(config *Config, logger *zap.Logger) ArticlePlugin {
 	return ArticlePlugin{
 		config:    config,
 		templates: map[string]*template.Template{},

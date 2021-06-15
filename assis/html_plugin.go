@@ -7,12 +7,12 @@ import (
 )
 
 type HTMLPlugin struct {
-	config Config
+	config *Config
 	name   string
 	logger *zap.Logger
 }
 
-func NewHTMLPlugin(config Config, logger *zap.Logger) HTMLPlugin {
+func NewHTMLPlugin(config *Config, logger *zap.Logger) HTMLPlugin {
 	return HTMLPlugin{config: config, name: "html", logger: logger}
 }
 

@@ -29,14 +29,14 @@ type PluginCustomFunction interface {
 }
 
 type Templates struct {
-	cfg          Config
+	cfg          *Config
 	baseTemplate string
 	partials     []string
 	files        []string
 	baseOrdered  []string
 }
 
-func NewTemplates(config Config) Templates {
+func NewTemplates(config *Config) Templates {
 	return Templates{
 		cfg:         config,
 		partials:    []string{},
@@ -125,14 +125,14 @@ func (s SiteFiles) Get(entry string) *FileContainer {
 }
 
 type Assis struct {
-	config    Config
+	config    *Config
 	templates Templates
 	plugins   []interface{}
 	container SiteFiles
 	logger    *zap.Logger
 }
 
-func NewAssis(config Config, plugins []interface{}, logger *zap.Logger) Assis {
+func NewAssis(config *Config, plugins []interface{}, logger *zap.Logger) Assis {
 	logger.Info("Initializing generator")
 	logger.Info(fmt.Sprintf("Content dir: %s", config.Content))
 	logger.Info(fmt.Sprintf("Output dir: %s", config.Output))

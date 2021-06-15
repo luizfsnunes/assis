@@ -8,12 +8,12 @@ import (
 )
 
 type StaticFilesPlugin struct {
-	config     Config
+	config     *Config
 	allowedExt []string
 	logger     *zap.Logger
 }
 
-func NewStaticFilesPlugin(config Config, allowedExt []string, logger *zap.Logger) StaticFilesPlugin {
+func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logger) StaticFilesPlugin {
 	return StaticFilesPlugin{
 		config:     config,
 		allowedExt: allowedExt,
