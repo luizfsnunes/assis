@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/luizfsnunes/assis/assis"
 	"go.uber.org/zap"
@@ -9,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func main() {
@@ -18,30 +18,49 @@ func main() {
 		os.Exit(1)
 	}
 
-	var configFlag string
-	if strings.HasPrefix(os.Args[2], "-config=") {
-		configFlag = strings.Split(os.Args[2], "-config=")[1]
-	}
+	serve := flag.NewFlagSet("serve", flag.ExitOnError)
+	serveCfg := serve.String("config", "", "Config file")
+	watch := serve.Bool("watch", false, "Watch files and hot-reload")
+
+	generate := flag.NewFlagSet("generate", flag.ExitOnError)
+	generateCfg := generate.String("config", "", "Config file")
 
 	logger := buildZap()
-	config, err := buildConfig(configFlag)
-	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
-	}
 
 	switch os.Args[1] {
 	case "serve":
-		fn := func() error {
-			return generateSite(config, logger)
+		if err := serve.Parse(os.Args[2:]); err != nil {
+			fmt.Print(err.Error())
+			os.Exit(1)
+		}
+		config, err := buildConfig(*serveCfg)
+		if err != nil {
+			logger.Error(err.Error())
+			os.Exit(1)
+		}
+
+		var fn func() error
+		if *watch == true {
+			fn = func() error {
+				return generateSite(config, logger)
+			}
 		}
 		server := assis.NewStaticServer(config, logger, fn)
-		if err := server.ListenAndServe(); err != nil {
+		if err = server.ListenAndServe(); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
 	case "generate":
-		if err := generateSite(config, logger); err != nil {
+		if err := generate.Parse(os.Args[2:]); err != nil {
+			fmt.Print(err.Error())
+			os.Exit(1)
+		}
+		config, err := buildConfig(*generateCfg)
+		if err != nil {
+			logger.Error(err.Error())
+			os.Exit(1)
+		}
+		if err = generateSite(config, logger); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}

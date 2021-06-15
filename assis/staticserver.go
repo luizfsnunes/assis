@@ -42,11 +42,13 @@ func (s StaticServe) ListenAndServe() error {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	go func() {
-		if err := s.Watch(); err != nil {
-			s.logger.Error(err.Error())
-		}
-	}()
+	if s.listen != nil {
+		go func() {
+			if err := s.Watch(); err != nil {
+				s.logger.Error(err.Error())
+			}
+		}()
+	}
 
 	go func() {
 		if err := http.ListenAndServe(":"+s.config.Server.Port, nil); err != nil && err != http.ErrServerClosed {
