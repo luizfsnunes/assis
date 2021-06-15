@@ -94,7 +94,7 @@ func (s StaticServe) Watch() error {
 			select {
 			// watch for events
 			case event := <-s.watcher.Events:
-				if event.Op.String() == "REMOVE" {
+				if event.Op.String() == "REMOVE" || event.Op.String() == "CREATE" {
 					s.logger.Info("File update")
 					if err := s.listen(); err != nil {
 						s.logger.Info(err.Error())
