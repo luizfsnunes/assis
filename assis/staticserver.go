@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+type OS interface {
+	ShouldGenerate(string) bool
+}
+
+type Windows struct {}
+
+func (w Windows) ShouldGenerate(op string) bool  {
+	return op == "REMOVE" || op == "CREATE"
+}
+
 type StaticServe struct {
 	logger  *zap.Logger
 	watcher *fsnotify.Watcher
@@ -77,7 +87,7 @@ func (s StaticServe) watchDir(path string, fi os.FileInfo, err error) error {
 	return nil
 }
 
-func (s StaticServe) Watch() error {
+func (s StaticServe) Watch(os OS) error {
 	s.watcher, _ = fsnotify.NewWatcher()
 	defer s.watcher.Close()
 
@@ -96,7 +106,7 @@ func (s StaticServe) Watch() error {
 			select {
 			// watch for events
 			case event := <-s.watcher.Events:
-				if event.Op.String() == "REMOVE" || event.Op.String() == "CREATE" {
+				if os.ShouldGenerate(event.Op.String()) {
 					s.logger.Info("File update")
 					if err := s.listen(); err != nil {
 						s.logger.Info(err.Error())
