@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"github.com/luizfsnunes/assis/assis"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 )
+
+func init(){
+	check := assis.NewCheckPath()
+	check.CheckConfigFolder()
+	check.CheckConfigFile()
+	//check.CheckBinFolder()
+}
 
 func main() {
 	if len(os.Args) <= 1 {
@@ -87,7 +93,7 @@ func buildConfig(configFile string) (*assis.Config, error) {
 		return nil, err
 	}
 
-	b, err := ioutil.ReadFile(abs)
+	b, err := os.ReadFile(abs)
 	if err != nil {
 		return nil, err
 	}

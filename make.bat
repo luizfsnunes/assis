@@ -1,1 +1,0 @@
-go build -ldflags "-s -w" -o assis.exe cmd/main.go
