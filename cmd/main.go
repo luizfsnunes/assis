@@ -1,22 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/luizfsnunes/assis/assis"
 	"go.uber.org/zap"
 	"log"
 	"os"
-	"path/filepath"
 )
-
-func init(){
-	check := assis.NewCheckPath()
-	check.CheckConfigFolder()
-	check.CheckConfigFile()
-	//check.CheckBinFolder()
-}
 
 func main() {
 	if len(os.Args) <= 1 {
@@ -26,10 +17,12 @@ func main() {
 
 	serve := flag.NewFlagSet("serve", flag.ExitOnError)
 	serveCfg := serve.String("config", "", "Config file")
+	serveFolderCfg := serve.String("folder", "", "Site Folder")
 	watch := serve.Bool("watch", false, "Watch files and hot-reload")
 
 	generate := flag.NewFlagSet("generate", flag.ExitOnError)
 	generateCfg := generate.String("config", "", "Config file")
+	generateFolderCfg := generate.String("folder", "", "Site Folder")
 
 	logger := buildZap()
 
@@ -39,7 +32,8 @@ func main() {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		config, err := buildConfig(*serveCfg)
+
+		config, err := assis.NewConfigFromFile(*serveFolderCfg, *serveCfg)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
@@ -61,11 +55,13 @@ func main() {
 			fmt.Print(err.Error())
 			os.Exit(1)
 		}
-		config, err := buildConfig(*generateCfg)
+
+		config, err := assis.NewConfigFromFile(*generateFolderCfg, *generateCfg)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
 		}
+
 		if err = generateSite(config, logger); err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
@@ -85,23 +81,6 @@ func buildZap() *zap.Logger {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	return logger
-}
-
-func buildConfig(configFile string) (*assis.Config, error) {
-	abs, err := filepath.Abs(configFile)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := os.ReadFile(abs)
-	if err != nil {
-		return nil, err
-	}
-	var cfg *assis.Config
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
 
 func generateSite(config *assis.Config, logger *zap.Logger) error {
