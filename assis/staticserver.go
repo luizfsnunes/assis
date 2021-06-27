@@ -2,25 +2,16 @@ package assis
 
 import (
 	"context"
-	"github.com/fsnotify/fsnotify"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"go.uber.org/zap"
 )
-
-type OS interface {
-	ShouldGenerate(string) bool
-}
-
-type Windows struct {}
-
-func (w Windows) ShouldGenerate(op string) bool  {
-	return op == "REMOVE" || op == "CREATE"
-}
 
 type StaticServe struct {
 	logger  *zap.Logger
@@ -54,7 +45,7 @@ func (s StaticServe) ListenAndServe() error {
 
 	if s.listen != nil {
 		go func() {
-			if err := s.Watch(); err != nil {
+			if err := s.Watch(GetOSBySystem()); err != nil {
 				s.logger.Error(err.Error())
 			}
 		}()
