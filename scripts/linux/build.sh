@@ -1,3 +1,5 @@
+go build -ldflags "-s -w" -o main cmd/main.go
+
 directory="bin"
 
 if [[ -d $directory ]]; then
