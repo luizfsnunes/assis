@@ -33,7 +33,7 @@ func CreateTargetFile(output string) (*os.File, error) {
 		return nil, err
 	}
 
-	target, err := os.OpenFile(output, os.O_CREATE, 0600)
+	target, err := os.OpenFile(output, GetOSBySystem().WriteFlags(), 0644)
 	if err != nil {
 		return nil, err
 	}
