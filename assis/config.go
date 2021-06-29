@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -174,13 +176,31 @@ func checkConfigFile(folder string) error {
 	return nil
 }
 
-func NewConfigFromFile(cfgFolder string, configPath string) (*Config, error) {
-	abs, err := filepath.Abs(fmt.Sprintf("%s/%s", cfgFolder, configPath))
+func NewConfigFromFile(configPath string) (*Config, error) {
+
+	abs, err := filepath.Abs(configPath)
+	pathFile := strings.Split(abs, "/")
+	configFile := pathFile[len(pathFile)-1:]
+	var mainPath string
+
+	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
+		if ! d.IsDir() && d.Name() == configFile[0] {
+			mainPath = path
+		}
+		return nil
+	})
+
+	if errPath != nil {
+		log.Fatal(errPath)
+	}
+
+	sitePath := strings.Split(mainPath, "/")
+
 	if err != nil {
 		return nil, err
 	}
 
-	b, err := os.ReadFile(abs)
+	b, err := os.ReadFile(mainPath)
 	if err != nil {
 		return nil, err
 	}
@@ -190,18 +210,17 @@ func NewConfigFromFile(cfgFolder string, configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	cfg.Content = fmt.Sprintf("%s/%s", cfgFolder, cfg.Content)
-	cfg.Output = fmt.Sprintf("%s/%s", cfgFolder, cfg.Output)
-	cfg.Template.Path = fmt.Sprintf("%s/%s", cfgFolder, cfg.Template.Path)
-	cfg.Template.Partials = fmt.Sprintf("%s/%s", cfgFolder, cfg.Template.Partials)
+	cfg.Content = fmt.Sprintf("%s/%s", sitePath[0], cfg.Content)
+	cfg.Output = fmt.Sprintf("%s/%s", sitePath[0], cfg.Output)
+	cfg.Template.Path = fmt.Sprintf("%s/%s", sitePath[0], cfg.Template.Path)
+	cfg.Template.Partials = fmt.Sprintf("%s/%s", sitePath[0], cfg.Template.Partials)
 
-	if err := cfg.validate(cfgFolder); err != nil {
+	if err := cfg.validate(sitePath[0]); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
 }
-
 
 func NewDefaultConfig(siteRoot string) Config {
 	siteRoot, _ = filepath.Abs(siteRoot)
