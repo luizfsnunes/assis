@@ -17,12 +17,10 @@ func main() {
 
 	serve := flag.NewFlagSet("serve", flag.ExitOnError)
 	serveCfg := serve.String("config", "", "Config file")
-	serveFolderCfg := serve.String("folder", "", "Site Folder")
 	watch := serve.Bool("watch", false, "Watch files and hot-reload")
 
 	generate := flag.NewFlagSet("generate", flag.ExitOnError)
 	generateCfg := generate.String("config", "", "Config file")
-	generateFolderCfg := generate.String("folder", "", "Site Folder")
 
 	logger := buildZap()
 
@@ -33,7 +31,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		config, err := assis.NewConfigFromFile(*serveFolderCfg, *serveCfg)
+		config, err := assis.NewConfigFromFile(*serveCfg)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
@@ -56,7 +54,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		config, err := assis.NewConfigFromFile(*generateFolderCfg, *generateCfg)
+		config, err := assis.NewConfigFromFile(*generateCfg)
 		if err != nil {
 			logger.Error(err.Error())
 			os.Exit(1)
