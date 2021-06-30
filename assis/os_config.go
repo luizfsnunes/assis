@@ -12,6 +12,8 @@ func GetOSBySystem() OS {
 		return Windows{}
 	case "linux":
 		return Linux{}
+	case "darwin":
+		return MaCOSX{}
 	default:
 		return Linux{}
 	}
@@ -34,10 +36,20 @@ func (w Windows) WriteFlags() int {
 
 type Linux struct{}
 
-func (w Linux) ShouldGenerate(op string) bool {
+func (l Linux) ShouldGenerate(op string) bool {
 	return  op == "REMOVE" || op == "WRITE"
 }
 
-func (w Linux) WriteFlags() int {
+func (l Linux) WriteFlags() int {
+	return os.O_WRONLY | os.O_CREATE
+}
+
+type MaCOSX struct {}
+
+func (m MaCOSX) ShouldGenerate(op string) bool{
+	return  op == "REMOVE" || op == "WRITE"
+}
+
+func (m MaCOSX) WriteFlags() int {
 	return os.O_WRONLY | os.O_CREATE
 }
