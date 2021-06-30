@@ -1,2 +1,8 @@
-build-win:
-    go build -ldflags "-s -w" -o assis cmd/main.go
+build:
+	@bash scripts/linux/build.sh
+
+generate:
+	@./bin/main generate -config=$(c)
+
+serve:
+	@./bin/main serve -config=$(c)

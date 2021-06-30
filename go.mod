@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/gammazero/workerpool v1.1.2 // indirect
+	github.com/gammazero/workerpool v1.1.2
 	github.com/gomarkdown/markdown v0.0.0-20210514010506-3b9f47219fe7
 	github.com/google/uuid v1.2.0
 	github.com/gosimple/slug v1.9.0
