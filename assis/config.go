@@ -31,13 +31,13 @@ type (
 	}
 )
 
-func (c Config) validate(configFolder string) error {
+func (c Config) validate(configFolder string, configFile string) error {
 
 	if errFolder := checkSiteFolder(configFolder, c.SiteRoot); errFolder != nil {
 		return errFolder
 	}
 
-	if errFile := checkConfigFile(configFolder); errFile != nil {
+	if errFile := checkConfigFile(configFolder, configFile); errFile != nil {
 		return errFile
 	}
 
@@ -63,12 +63,8 @@ func (c Config) validate(configFolder string) error {
 
 func checkSiteFolder(folder string, siteRoot string) error {
 
-	if len(siteRoot) == 0 {
-		return errors.New("you must define your site_root in your config.json")
-	}
-
 	if folder != siteRoot {
-		return errors.New("you should define same of your folder that has in your site_root(config.json)")
+		return errors.New("you should define same of your folder that has in your site_root inside your config file")
 	}
 
 	configFolder, err := os.Stat(folder)
@@ -86,13 +82,15 @@ func checkSiteFolder(folder string, siteRoot string) error {
 
 func checkConfigFolders(content string, configType string) error {
 
-	folder := strings.Split(content,"/")
+	folder := strings.Split(content, "/")
 
 	var emptyMessageError string
 
 	messageDefaultVal := "\nyou must configure your config json like: \n" +
-		"{\n  \"site_root\": \"example\",\n  \"output\": \"out\",\n  \"content\": \"content\",\n  " +
-		"\"template\": {\n    \"path\": \"template\",\n    \"partials\": \"template/partials\",\n  " +
+		"{\n  \"site_root\": \"your_site_root_folder\",\n  \"output\": \"name_your_output\",\n  " +
+		"\"content\": \"content\",\n  " +
+		"\"template\": {\n    \"path\": \"your_template_folder\",\n  " +
+		"  \"partials\": \"your_template_folder/your_template_folder_partials\",\n  " +
 		"  \"layout\": \"base.html\"\n  },\n  \"server\": {\n    \"port\": \"8080\"\n  }\n}"
 
 	switch configType {
@@ -124,7 +122,7 @@ func checkConfigFolders(content string, configType string) error {
 
 func checkConfigTemplate(template Template) error {
 
-	folder := strings.Split(template.Path,"/")
+	folder := strings.Split(template.Path, "/")
 
 	if folder[1] == "" && len(folder[1]) == 0 {
 		return errors.New("you must define your template path in your config.json")
@@ -161,16 +159,16 @@ func checkConfigServer(server Server) error {
 	return nil
 }
 
-
-func checkConfigFile(folder string) error {
-	configFile, err := os.Stat(fmt.Sprintf("%s/config.json", folder))
+func checkConfigFile(folder string, cfgFile string) error {
+	configFile, err := os.Stat(fmt.Sprintf("%s/%s", folder, cfgFile))
 
 	if os.IsNotExist(err) {
-		return errors.New("you must create a 'config.json' file inside your site folder to build project")
+		return errors.New(
+			fmt.Sprintf("you must create a '%s' file inside your site folder to build project", cfgFile))
 	}
 
 	if configFile.IsDir() {
-		return errors.New("config.json must be a file")
+		return errors.New(fmt.Sprintf("%s must be a file", cfgFile))
 	}
 
 	return nil
@@ -184,7 +182,7 @@ func NewConfigFromFile(configPath string) (*Config, error) {
 	var mainPath string
 
 	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
-		if ! d.IsDir() && d.Name() == configFile[0] {
+		if !d.IsDir() && d.Name() == configFile[0] {
 			mainPath = path
 		}
 		return nil
@@ -210,32 +208,53 @@ func NewConfigFromFile(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	cfg.Content = fmt.Sprintf("%s/%s", sitePath[0], cfg.Content)
-	cfg.Output = fmt.Sprintf("%s/%s", sitePath[0], cfg.Output)
-	cfg.Template.Path = fmt.Sprintf("%s/%s", sitePath[0], cfg.Template.Path)
-	cfg.Template.Partials = fmt.Sprintf("%s/%s", sitePath[0], cfg.Template.Partials)
+	SetDefaultConfigs(cfg, sitePath[0])
 
-	if err := cfg.validate(sitePath[0]); err != nil {
+	if err := cfg.validate(sitePath[0], configFile[0]); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
 }
 
-func NewDefaultConfig(siteRoot string) Config {
-	siteRoot, _ = filepath.Abs(siteRoot)
-	siteRoot = filepath.ToSlash(siteRoot)
-	return Config{
-		SiteRoot: siteRoot,
-		Content:  siteRoot + "/content",
-		Output:   siteRoot + "/out",
-		Template: Template{
-			Path:     siteRoot + "/template",
-			Partials: siteRoot + "/template/partials",
-			Layout:   "layout.html",
-		},
-		Server: Server{
-			Port: "8080",
-		},
+func SetDefaultConfigs(config *Config, sitePath string) *Config {
+
+	if len(config.SiteRoot) <= 0 {
+		config.SiteRoot = sitePath
 	}
+
+	if len(config.Content) <= 0 {
+		config.Content = fmt.Sprintf("%s/%s", sitePath, "content")
+	} else {
+		config.Content = fmt.Sprintf("%s/%s", sitePath, config.Content)
+	}
+
+	if len(config.Output) <= 0 {
+		config.Output = fmt.Sprintf("%s/%s", sitePath, "output")
+	} else {
+		config.Output = fmt.Sprintf("%s/%s", sitePath, config.Output)
+	}
+
+	if len(config.Template.Path) <= 0 {
+		config.Template.Path = fmt.Sprintf("%s/%s", sitePath, "template")
+	} else {
+		config.Template.Path = fmt.Sprintf("%s/%s", sitePath, config.Template.Path)
+	}
+
+
+	if len(config.Template.Partials) <= 0 {
+		config.Template.Partials = fmt.Sprintf("%s/%s", sitePath, "partials")
+	} else {
+		config.Template.Partials = fmt.Sprintf("%s/%s", sitePath, config.Template.Partials)
+	}
+
+	if len(config.Template.Layout) <= 0 {
+		config.Template.Layout = "index.html"
+	}
+
+	if len(config.Server.Port) <= 0 {
+		config.Server.Port = "6780"
+	}
+
+	return config
 }
