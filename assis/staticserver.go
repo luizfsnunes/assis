@@ -2,14 +2,15 @@ package assis
 
 import (
 	"context"
-	"github.com/fsnotify/fsnotify"
-	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"go.uber.org/zap"
 )
 
 type StaticServe struct {
@@ -44,7 +45,7 @@ func (s StaticServe) ListenAndServe() error {
 
 	if s.listen != nil {
 		go func() {
-			if err := s.Watch(); err != nil {
+			if err := s.Watch(GetOSBySystem()); err != nil {
 				s.logger.Error(err.Error())
 			}
 		}()
@@ -77,7 +78,7 @@ func (s StaticServe) watchDir(path string, fi os.FileInfo, err error) error {
 	return nil
 }
 
-func (s StaticServe) Watch() error {
+func (s StaticServe) Watch(os OS) error {
 	s.watcher, _ = fsnotify.NewWatcher()
 	defer s.watcher.Close()
 
@@ -96,7 +97,7 @@ func (s StaticServe) Watch() error {
 			select {
 			// watch for events
 			case event := <-s.watcher.Events:
-				if event.Op.String() == "REMOVE" || event.Op.String() == "CREATE" {
+				if os.ShouldGenerate(event.Op.String()) {
 					s.logger.Info("File update")
 					if err := s.listen(); err != nil {
 						s.logger.Info(err.Error())
