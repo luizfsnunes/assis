@@ -2,10 +2,6 @@ package assis
 
 import (
 	"fmt"
-	"github.com/gammazero/workerpool"
-	"github.com/gomarkdown/markdown"
-	"github.com/gosimple/slug"
-	"go.uber.org/zap"
 	"html/template"
 	"io/ioutil"
 	"net/mail"
@@ -13,6 +9,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/gammazero/workerpool"
+	"github.com/gomarkdown/markdown"
+	"github.com/gosimple/slug"
+	"go.uber.org/zap"
 )
 
 type Tags []string
@@ -99,8 +100,8 @@ type ArticlePlugin struct {
 	logger    *zap.Logger
 }
 
-func NewArticlePlugin(config *Config, logger *zap.Logger) ArticlePlugin {
-	return ArticlePlugin{
+func NewArticlePlugin(config *Config, logger *zap.Logger) *ArticlePlugin {
+	return &ArticlePlugin{
 		config:    config,
 		templates: map[string]*template.Template{},
 		files:     map[string][]Article{},

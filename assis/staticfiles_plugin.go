@@ -2,10 +2,11 @@ package assis
 
 import (
 	"fmt"
-	"github.com/gammazero/workerpool"
-	"go.uber.org/zap"
 	"io"
 	"os"
+
+	"github.com/gammazero/workerpool"
+	"go.uber.org/zap"
 )
 
 type StaticFilesPlugin struct {
@@ -14,8 +15,8 @@ type StaticFilesPlugin struct {
 	logger     *zap.Logger
 }
 
-func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logger) StaticFilesPlugin {
-	return StaticFilesPlugin{
+func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logger) *StaticFilesPlugin {
+	return &StaticFilesPlugin{
 		config:     config,
 		allowedExt: allowedExt,
 		logger:     logger,
