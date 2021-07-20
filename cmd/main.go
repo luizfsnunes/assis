@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/luizfsnunes/assis/assis"
-	"go.uber.org/zap"
 	"log"
 	"os"
+
+	"github.com/luizfsnunes/assis/assis"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -82,12 +83,12 @@ func buildZap() *zap.Logger {
 }
 
 func generateSite(config *assis.Config, logger *zap.Logger) error {
-	plugins := []interface{}{
+	plugins := assis.NewPluginRegistry(
 		assis.NewArticlePlugin(config, logger),
 		assis.NewHTMLPlugin(config, logger),
 		assis.NewStaticFilesPlugin(config, []string{".svg", ".js", ".png", ".jpg", ".jpeg", ".gif", ".css"}, logger),
 		assis.NewMinifyPlugin(logger),
-	}
+	)
 
 	assisGenerator := assis.NewAssis(config, plugins, logger)
 	if err := assisGenerator.LoadFilesAsync(); err != nil {

@@ -1,8 +1,9 @@
 package assis
 
 import (
-	"github.com/google/uuid"
 	"html/template"
+
+	"github.com/google/uuid"
 )
 
 type AssisTemplate struct {
@@ -22,40 +23,19 @@ type Generator interface {
 }
 
 type SiteGenerator struct {
-	funcMap       template.FuncMap
-	plugins       []interface{}
+	dispatcher    pluginDispatcher
 	templates     Templates
 	assisTemplate AssisTemplate
 }
 
-func NewGenerator(templates Templates, plugins []interface{}) Generator {
-	funcMap := make(map[string]interface{}, len(plugins))
-	for _, plugin := range plugins {
-		switch plugin := plugin.(type) {
-		case PluginCustomFunction:
-			for name, fun := range plugin.OnRegisterCustomFunction() {
-				funcMap[name] = fun
-			}
-		}
-	}
-
+func NewGenerator(templates Templates, dispatcher pluginDispatcher) Generator {
 	return SiteGenerator{
-		funcMap:       funcMap,
-		plugins:       plugins,
+		dispatcher:    dispatcher,
 		templates:     templates,
-		assisTemplate: NewAssisTemplate(funcMap),
+		assisTemplate: NewAssisTemplate(dispatcher.DispatchPluginCustomFunction()),
 	}
 }
 
 func (h SiteGenerator) Render(siteFiles SiteFiles) error {
-	for i := 0; i < len(h.plugins); i++ {
-		switch plugin := h.plugins[i].(type) {
-		case PluginRender:
-			if err := plugin.OnRender(h.assisTemplate, siteFiles, h.templates); err != nil {
-				return err
-			}
-			break
-		}
-	}
-	return nil
+	return h.dispatcher.DispatchPluginRender(h.assisTemplate, siteFiles, h.templates)
 }
