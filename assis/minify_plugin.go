@@ -2,16 +2,17 @@ package assis
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
+
 	"github.com/gammazero/workerpool"
 	"github.com/tdewolff/minify"
 	"github.com/tdewolff/minify/css"
 	"github.com/tdewolff/minify/html"
 	"github.com/tdewolff/minify/js"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"regexp"
 )
 
 type MinifyPlugin struct {
@@ -20,13 +21,13 @@ type MinifyPlugin struct {
 	mediaTypes map[string]string
 }
 
-func NewMinifyPlugin(logger *zap.Logger) MinifyPlugin {
+func NewMinifyPlugin(logger *zap.Logger) *MinifyPlugin {
 	m := minify.New()
 	m.AddFunc("text/css", css.Minify)
 	m.AddFunc("text/html", html.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
 
-	return MinifyPlugin{
+	return &MinifyPlugin{
 		minify:     m,
 		logger:     logger,
 		mediaTypes: map[string]string{".html": "text/html", ".css": "text/css", ".js": "application/javascript"},

@@ -1,10 +1,11 @@
 package assis
 
 import (
-	"github.com/gammazero/workerpool"
-	"go.uber.org/zap"
 	"html/template"
 	"path/filepath"
+
+	"github.com/gammazero/workerpool"
+	"go.uber.org/zap"
 )
 
 type HTMLPlugin struct {
@@ -13,8 +14,8 @@ type HTMLPlugin struct {
 	logger *zap.Logger
 }
 
-func NewHTMLPlugin(config *Config, logger *zap.Logger) HTMLPlugin {
-	return HTMLPlugin{config: config, name: "html", logger: logger}
+func NewHTMLPlugin(config *Config, logger *zap.Logger) *HTMLPlugin {
+	return &HTMLPlugin{config: config, name: "html", logger: logger}
 }
 
 func (h HTMLPlugin) OnRegisterCustomFunction() map[string]interface{} {

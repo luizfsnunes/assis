@@ -2,32 +2,16 @@ package assis
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"io/fs"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
+
+	"go.uber.org/zap"
 )
 
 const HTML = ".html"
 const MD = ".md"
-
-type PluginRender interface {
-	OnRender(AssisTemplate, SiteFiles, Templates) error
-}
-
-type PluginGeneratedFiles interface {
-	AfterGeneratedFiles([]string) error
-}
-
-type PluginLoadFiles interface {
-	AfterLoadFiles(SiteFiles) error
-}
-
-type PluginCustomFunction interface {
-	OnRegisterCustomFunction() map[string]interface{}
-}
 
 type Templates struct {
 	cfg          *Config
@@ -50,6 +34,7 @@ func (t *Templates) orderBaseTemplate() {
 	t.baseOrdered = []string{t.baseTemplate}
 	t.baseOrdered = append(t.baseOrdered, t.partials...)
 }
+
 func (t *Templates) GetTemplatesByDir(fileToRender string) []string {
 	fn := func(path string) int {
 		return len(strings.Split(filepath.ToSlash(filepath.Dir(path)), "/"))
@@ -126,25 +111,25 @@ func (s SiteFiles) Get(entry string) *FileContainer {
 }
 
 type Assis struct {
-	config    *Config
-	templates Templates
-	plugins   []interface{}
-	container SiteFiles
-	logger    *zap.Logger
+	config     *Config
+	templates  Templates
+	dispatcher pluginDispatcher
+	container  SiteFiles
+	logger     *zap.Logger
 }
 
-func NewAssis(config *Config, plugins []interface{}, logger *zap.Logger) Assis {
+func NewAssis(config *Config, registry PluginRegistry, logger *zap.Logger) Assis {
 	logger.Info("Initializing generator")
 	logger.Info(fmt.Sprintf("Content dir: %s", config.Content))
 	logger.Info(fmt.Sprintf("Output dir: %s", config.Output))
 	logger.Info(fmt.Sprintf("Template dir: %s", config.Template))
 
 	return Assis{
-		config:    config,
-		plugins:   plugins,
-		container: SiteFiles{},
-		logger:    logger,
-		templates: NewTemplates(config),
+		config:     config,
+		dispatcher: pluginDispatcher{registry: registry},
+		container:  SiteFiles{},
+		logger:     logger,
+		templates:  NewTemplates(config),
 	}
 }
 
@@ -223,17 +208,8 @@ func (a *Assis) LoadFilesAsync() error {
 	select {
 	case <-wgDone:
 		a.logger.Info("Run AfterLoadFiles")
-		for _, plugin := range a.plugins {
-			switch plugin := plugin.(type) {
-			case PluginLoadFiles:
-				start := time.Now()
-				if err := plugin.AfterLoadFiles(a.container); err != nil {
-					return err
-				}
-				elapsed := time.Since(start)
-				a.logger.Info(fmt.Sprintf("PluginLoadFiles took %s", elapsed))
-				break
-			}
+		if err := a.dispatcher.DispatchPluginLoadFiles(a.container); err != nil {
+			return err
 		}
 		break
 	case err := <-fatalErrors:
@@ -245,7 +221,7 @@ func (a *Assis) LoadFilesAsync() error {
 
 func (a *Assis) Generate() error {
 	a.logger.Info("Run Generate task")
-	generator := NewGenerator(a.templates, a.plugins)
+	generator := NewGenerator(a.templates, a.dispatcher)
 	if err := generator.Render(a.container); err != nil {
 		return err
 	}
@@ -268,14 +244,8 @@ func (a *Assis) Generate() error {
 	}
 
 	a.logger.Info("Run AfterGeneratedFiles")
-	for _, plugin := range a.plugins {
-		switch plugin := plugin.(type) {
-		case PluginGeneratedFiles:
-			if err := plugin.AfterGeneratedFiles(generated); err != nil {
-				return err
-			}
-			break
-		}
+	if err := a.dispatcher.DispatchPluginGeneratedFiles(generated); err != nil {
+		return err
 	}
 	return nil
 }
