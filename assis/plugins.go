@@ -32,21 +32,20 @@ func NewPluginRegistry(plugins ...interface{}) PluginRegistry {
 	}
 
 	for _, plugin := range plugins {
-		switch plugin := plugin.(type) {
-		case PluginRender:
-			r.render = append(r.render, plugin)
-			break
-		case PluginGeneratedFiles:
-			r.generatedFiles = append(r.generatedFiles, plugin)
-			break
-		case PluginLoadFiles:
-			r.loadFiles = append(r.loadFiles, plugin)
-			break
-		case PluginCustomFunction:
-			r.customFunction = append(r.customFunction, plugin)
-			break
+		if p, ok := plugin.(PluginRender); ok {
+			r.render = append(r.render, p)
+		}
+		if p, ok := plugin.(PluginGeneratedFiles); ok {
+			r.generatedFiles = append(r.generatedFiles, p)
+		}
+		if p, ok := plugin.(PluginLoadFiles); ok {
+			r.loadFiles = append(r.loadFiles, p)
+		}
+		if p, ok := plugin.(PluginCustomFunction); ok {
+			r.customFunction = append(r.customFunction, p)
 		}
 	}
+
 	return r
 }
 
