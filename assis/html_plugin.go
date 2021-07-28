@@ -39,7 +39,6 @@ func (h HTMLPlugin) Truncate(size int, str template.HTML) template.HTML {
 func (h HTMLPlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	h.logger.Info("Start HTML rendering")
 	wp := workerpool.New(2)
-	maxJobs := 0
 	for _, container := range siteFiles {
 		container := container
 		wp.Submit(func() {
@@ -47,12 +46,6 @@ func (h HTMLPlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Tem
 				h.logger.Error(err.Error())
 			}
 		})
-		maxJobs += 1
-		if maxJobs == 4 {
-			maxJobs = 0
-			wp.StopWait()
-			wp = workerpool.New(2)
-		}
 	}
 	wp.StopWait()
 	h.logger.Info("Finished HTML rendering")

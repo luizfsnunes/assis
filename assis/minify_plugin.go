@@ -34,7 +34,7 @@ func NewMinifyPlugin(logger *zap.Logger) *MinifyPlugin {
 	}
 }
 
-func (m MinifyPlugin) AllowedMediaType(filename string) string {
+func (m MinifyPlugin) allowedMediaType(filename string) string {
 	return m.mediaTypes[filepath.Ext(filename)]
 }
 
@@ -44,7 +44,7 @@ func (m MinifyPlugin) AfterGeneratedFiles(files []string) error {
 	maxJobs := 0
 	for _, f := range files {
 		f := f
-		media := m.AllowedMediaType(f)
+		media := m.allowedMediaType(f)
 		if media == "" {
 			continue
 		}
