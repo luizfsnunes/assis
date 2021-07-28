@@ -60,7 +60,7 @@ func (h HTMLPlugin) processContainer(container *FileContainer, t AssisTemplate, 
 		allTemplates := append(templates.GetTemplatesByDir(filename), filename)
 		targetTemplate, err := t.GetTemplate().ParseFiles(allTemplates...)
 
-		err = func() error {
+		err = func(targetTemplate *template.Template, container *FileContainer) error {
 			target, err := CreateTargetFile(container.OutputFilename(file))
 			defer target.Close()
 			if err != nil {
@@ -73,7 +73,7 @@ func (h HTMLPlugin) processContainer(container *FileContainer, t AssisTemplate, 
 
 			h.logger.Info("Rendered file to " + target.Name())
 			return nil
-		}()
+		}(targetTemplate, container)
 		if err != nil {
 			return err
 		}
