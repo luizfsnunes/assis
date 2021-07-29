@@ -27,7 +27,6 @@ func (s StaticFilesPlugin) AfterLoadFiles(files SiteFiles) error {
 	s.logger.Info("Start static files copy")
 
 	wp := workerpool.New(2)
-	maxJobs := 0
 	for _, container := range files {
 		container := container
 		wp.Submit(func() {
@@ -35,12 +34,6 @@ func (s StaticFilesPlugin) AfterLoadFiles(files SiteFiles) error {
 				s.logger.Error(err.Error())
 			}
 		})
-		maxJobs += 1
-		if maxJobs == 4 {
-			maxJobs = 0
-			wp.StopWait()
-			wp = workerpool.New(2)
-		}
 	}
 	wp.StopWait()
 	s.logger.Info("Finished static files copy")

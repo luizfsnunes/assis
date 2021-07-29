@@ -193,7 +193,6 @@ func (m ArticlePlugin) orderByDate(dir string, list []Article) []Article {
 func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	m.logger.Info("Start Article rendering")
 	wp := workerpool.New(2)
-	maxJobs := 0
 	for _, container := range siteFiles {
 		container := container
 		wp.Submit(func() {
@@ -201,12 +200,6 @@ func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates 
 				m.logger.Error(err.Error())
 			}
 		})
-		maxJobs += 1
-		if maxJobs == 4 {
-			maxJobs = 0
-			wp.StopWait()
-			wp = workerpool.New(2)
-		}
 	}
 	wp.StopWait()
 	m.logger.Info("Finished Article rendering")
