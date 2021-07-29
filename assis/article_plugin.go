@@ -234,7 +234,7 @@ func (m ArticlePlugin) processContainer(container *FileContainer, t AssisTemplat
 				return err
 			}
 
-			templateFile, err := filepath.Abs(fmt.Sprintf("%s\\%s", m.config.Template.Path, parsed.Template))
+			templateFile, err := filepath.Abs(fmt.Sprintf("%s%s%s", m.config.Template.Path, string(filepath.Separator), parsed.Template))
 			if err != nil {
 				return err
 			}
