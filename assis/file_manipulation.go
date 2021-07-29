@@ -12,7 +12,7 @@ func GenerateDir(outputFile string) error {
 		return err
 	}
 	if !exists {
-		return os.MkdirAll(outputPath, 0600)
+		return os.MkdirAll(outputPath, 0755)
 	}
 	return nil
 }
