@@ -1,5 +1,5 @@
 build:
-	@bash scripts/linux/build.sh
+	@bash scripts/bash/build.sh
 
 generate:
 	@./bin/main generate -config=$(c)
