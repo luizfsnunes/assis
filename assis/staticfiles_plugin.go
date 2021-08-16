@@ -26,6 +26,10 @@ func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logge
 func (s StaticFilesPlugin) AfterLoadFiles(files SiteFiles) error {
 	s.logger.Info("Start static files copy")
 
+	pluginList := s.getPluginsConfig()
+
+	s.logger.Info(fmt.Sprintf("%v", pluginList))
+
 	wp := workerpool.New(2)
 	for _, container := range files {
 		container := container
@@ -49,13 +53,23 @@ func (s StaticFilesPlugin) copyStaticFile(container *FileContainer) error {
 			}
 
 			source, err := os.Open(container.FullFilename(file))
-			defer source.Close()
+			defer func(source *os.File) {
+				err := source.Close()
+				if err != nil {
+
+				}
+			}(source)
 			if err != nil {
 				return err
 			}
 
 			target, err := os.Create(container.OutputFilename(file))
-			defer target.Close()
+			defer func(target *os.File) {
+				err := target.Close()
+				if err != nil {
+
+				}
+			}(target)
 			if err != nil {
 				return err
 			}
@@ -73,4 +87,18 @@ func (s StaticFilesPlugin) copyStaticFile(container *FileContainer) error {
 		}
 	}
 	return nil
+}
+
+func (s StaticFilesPlugin) getPluginsConfig() []Plugin {
+
+	var pluginNameList []string
+	var pluginList []Plugin
+
+	for _, value := range s.config.Plugins {
+		pluginNameList = append(pluginNameList, value.Name)
+		pluginList = append(pluginList, value)
+	}
+
+	s.logger.Info(fmt.Sprintf("Plugin List: %s", pluginNameList))
+	return pluginList
 }
