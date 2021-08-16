@@ -14,10 +14,16 @@ import (
 type (
 	Config struct {
 		SiteRoot string   `json:"site_root"`
+		Plugins  []Plugin `json:"plugins"`
 		Output   string   `json:"output"`
 		Content  string   `json:"content"`
 		Template Template `json:"template"`
 		Server   Server   `json:"server"`
+	}
+
+	Plugin struct {
+		Name          string                 `json:"name"`
+		ConfigOptions map[string]interface{} `json:"config_options"`
 	}
 
 	Template struct {
@@ -204,6 +210,7 @@ func NewConfigFromFile(configPath string) (*Config, error) {
 	}
 
 	var cfg *Config
+
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return nil, err
 	}
@@ -240,7 +247,6 @@ func SetDefaultConfigs(config *Config, sitePath string) *Config {
 	} else {
 		config.Template.Path = fmt.Sprintf("%s/%s", sitePath, config.Template.Path)
 	}
-
 
 	if len(config.Template.Partials) <= 0 {
 		config.Template.Partials = fmt.Sprintf("%s/%s", sitePath, "partials")
