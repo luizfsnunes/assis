@@ -89,13 +89,12 @@ func (s StaticFilesPlugin) copyStaticFile(container *FileContainer) error {
 	return nil
 }
 
-func (s StaticFilesPlugin) getPluginsConfig() []Plugin {
-
+func (s StaticFilesPlugin) getPluginsConfig() []PluginOptions {
 	var pluginNameList []string
-	var pluginList []Plugin
+	var pluginList []PluginOptions
 
-	for _, value := range s.config.Plugins {
-		pluginNameList = append(pluginNameList, value.Name)
+	for name, value := range s.config.Plugins {
+		pluginNameList = append(pluginNameList, name)
 		pluginList = append(pluginList, value)
 	}
 

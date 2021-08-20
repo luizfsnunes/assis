@@ -13,18 +13,16 @@ import (
 
 type (
 	Config struct {
-		SiteRoot string   `json:"site_root"`
-		Plugins  []Plugin `json:"plugins"`
-		Output   string   `json:"output"`
-		Content  string   `json:"content"`
-		Template Template `json:"template"`
-		Server   Server   `json:"server"`
+
+		SiteRoot string                   `json:"site_root"`
+		Plugins  map[string]PluginOptions `json:"plugins"`
+		Output   string                   `json:"output"`
+		Content  string                   `json:"content"`
+		Template Template                 `json:"template"`
+		Server   Server                   `json:"server"`
 	}
 
-	Plugin struct {
-		Name          string                 `json:"name"`
-		ConfigOptions map[string]interface{} `json:"config_options"`
-	}
+	PluginOptions map[string]interface{}
 
 	Template struct {
 		Path     string `json:"path"`
@@ -37,8 +35,59 @@ type (
 	}
 )
 
-func (c Config) validate(configFolder string, configFile string) error {
+func NewConfig(configJson string) (Config, error) {
+	var config Config
+	if err := json.Unmarshal([]byte(configJson), &config); err != nil {
+		return config, err
+	}
 
+	return config, nil
+}
+
+func NewConfigFromFile(configPath string) (*Config, error) {
+	abs, err := filepath.Abs(configPath)
+	pathFile := strings.Split(abs, "/")
+	configFile := pathFile[len(pathFile)-1:]
+	var mainPath string
+
+	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
+		if !d.IsDir() && d.Name() == configFile[0] {
+			mainPath = path
+		}
+		return nil
+	})
+
+	if errPath != nil {
+		log.Fatal(errPath)
+	}
+
+	sitePath := strings.Split(mainPath, "/")
+
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := os.ReadFile(mainPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg *Config
+
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return nil, err
+	}
+
+	SetDefaultConfigs(cfg, sitePath[0])
+
+	if err := cfg.validate(sitePath[0], configFile[0]); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func (c Config) validate(configFolder string, configFile string) error {
 	if errFolder := checkSiteFolder(configFolder, c.SiteRoot); errFolder != nil {
 		return errFolder
 	}
@@ -49,7 +98,6 @@ func (c Config) validate(configFolder string, configFile string) error {
 
 	if errContent := checkConfigFolders(c.Content, "content"); errContent != nil {
 		return errContent
-
 	}
 
 	if errOutput := checkConfigFolders(c.Output, "output"); errOutput != nil {
@@ -67,6 +115,7 @@ func (c Config) validate(configFolder string, configFile string) error {
 	return nil
 }
 
+// TODO add these methods to Config struct
 func checkSiteFolder(folder string, siteRoot string) error {
 
 	if folder != siteRoot {
@@ -180,50 +229,6 @@ func checkConfigFile(folder string, cfgFile string) error {
 	return nil
 }
 
-func NewConfigFromFile(configPath string) (*Config, error) {
-
-	abs, err := filepath.Abs(configPath)
-	pathFile := strings.Split(abs, "/")
-	configFile := pathFile[len(pathFile)-1:]
-	var mainPath string
-
-	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
-		if !d.IsDir() && d.Name() == configFile[0] {
-			mainPath = path
-		}
-		return nil
-	})
-
-	if errPath != nil {
-		log.Fatal(errPath)
-	}
-
-	sitePath := strings.Split(mainPath, "/")
-
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := os.ReadFile(mainPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg *Config
-
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-
-	SetDefaultConfigs(cfg, sitePath[0])
-
-	if err := cfg.validate(sitePath[0], configFile[0]); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
-}
-
 func SetDefaultConfigs(config *Config, sitePath string) *Config {
 
 	if len(config.SiteRoot) <= 0 {
@@ -247,6 +252,7 @@ func SetDefaultConfigs(config *Config, sitePath string) *Config {
 	} else {
 		config.Template.Path = fmt.Sprintf("%s/%s", sitePath, config.Template.Path)
 	}
+
 
 	if len(config.Template.Partials) <= 0 {
 		config.Template.Partials = fmt.Sprintf("%s/%s", sitePath, "partials")
