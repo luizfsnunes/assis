@@ -13,7 +13,6 @@ import (
 
 type (
 	Config struct {
-
 		SiteRoot string                   `json:"site_root"`
 		Plugins  map[string]PluginOptions `json:"plugins"`
 		Output   string                   `json:"output"`
@@ -45,27 +44,8 @@ func NewConfig(configJson string) (Config, error) {
 }
 
 func NewConfigFromFile(configPath string) (*Config, error) {
-	abs, err := filepath.Abs(configPath)
-	pathFile := strings.Split(abs, "/")
-	configFile := pathFile[len(pathFile)-1:]
-	var mainPath string
 
-	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
-		if !d.IsDir() && d.Name() == configFile[0] {
-			mainPath = path
-		}
-		return nil
-	})
-
-	if errPath != nil {
-		log.Fatal(errPath)
-	}
-
-	sitePath := strings.Split(mainPath, "/")
-
-	if err != nil {
-		return nil, err
-	}
+	sitePath, configFile, mainPath, err := getSiteConfigPaths(configPath)
 
 	b, err := os.ReadFile(mainPath)
 	if err != nil {
@@ -78,9 +58,9 @@ func NewConfigFromFile(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	SetDefaultConfigs(cfg, sitePath[0])
+	SetDefaultConfigs(cfg, sitePath)
 
-	if err := cfg.validate(sitePath[0], configFile[0]); err != nil {
+	if err := cfg.validate(sitePath, configFile); err != nil {
 		return nil, err
 	}
 
@@ -88,35 +68,34 @@ func NewConfigFromFile(configPath string) (*Config, error) {
 }
 
 func (c Config) validate(configFolder string, configFile string) error {
-	if errFolder := checkSiteFolder(configFolder, c.SiteRoot); errFolder != nil {
+	if errFolder := c.checkSiteFolder(configFolder, c.SiteRoot); errFolder != nil {
 		return errFolder
 	}
 
-	if errFile := checkConfigFile(configFolder, configFile); errFile != nil {
+	if errFile := c.checkConfigFile(configFolder, configFile); errFile != nil {
 		return errFile
 	}
 
-	if errContent := checkConfigFolders(c.Content, "content"); errContent != nil {
+	if errContent := c.checkConfigFolders(c.Content, "content"); errContent != nil {
 		return errContent
 	}
 
-	if errOutput := checkConfigFolders(c.Output, "output"); errOutput != nil {
+	if errOutput := c.checkConfigFolders(c.Output, "output"); errOutput != nil {
 		return errOutput
 	}
 
-	if errTemplates := checkConfigTemplate(c.Template); errTemplates != nil {
+	if errTemplates := c.checkConfigTemplate(c.Template); errTemplates != nil {
 		return errTemplates
 	}
 
-	if errServer := checkConfigServer(c.Server); errServer != nil {
+	if errServer := c.checkConfigServer(c.Server); errServer != nil {
 		return errServer
 	}
 
 	return nil
 }
 
-// TODO add these methods to Config struct
-func checkSiteFolder(folder string, siteRoot string) error {
+func (c Config) checkSiteFolder(folder string, siteRoot string) error {
 
 	if folder != siteRoot {
 		return errors.New("you should define same of your folder that has in your site_root inside your config file")
@@ -135,7 +114,7 @@ func checkSiteFolder(folder string, siteRoot string) error {
 	return nil
 }
 
-func checkConfigFolders(content string, configType string) error {
+func (c Config) checkConfigFolders(content string, configType string) error {
 
 	folder := strings.Split(content, "/")
 
@@ -175,7 +154,7 @@ func checkConfigFolders(content string, configType string) error {
 	return nil
 }
 
-func checkConfigTemplate(template Template) error {
+func (c Config) checkConfigTemplate(template Template) error {
 
 	folder := strings.Split(template.Path, "/")
 
@@ -205,7 +184,7 @@ func checkConfigTemplate(template Template) error {
 	return nil
 }
 
-func checkConfigServer(server Server) error {
+func (c Config) checkConfigServer(server Server) error {
 
 	if len(server.Port) > 4 {
 		return errors.New("you must define a port of your server with more 4 characters in your config.json")
@@ -214,7 +193,7 @@ func checkConfigServer(server Server) error {
 	return nil
 }
 
-func checkConfigFile(folder string, cfgFile string) error {
+func (c Config) checkConfigFile(folder string, cfgFile string) error {
 	configFile, err := os.Stat(fmt.Sprintf("%s/%s", folder, cfgFile))
 
 	if os.IsNotExist(err) {
@@ -253,7 +232,6 @@ func SetDefaultConfigs(config *Config, sitePath string) *Config {
 		config.Template.Path = fmt.Sprintf("%s/%s", sitePath, config.Template.Path)
 	}
 
-
 	if len(config.Template.Partials) <= 0 {
 		config.Template.Partials = fmt.Sprintf("%s/%s", sitePath, "partials")
 	} else {
@@ -269,4 +247,32 @@ func SetDefaultConfigs(config *Config, sitePath string) *Config {
 	}
 
 	return config
+}
+
+func getSiteConfigPaths(configPath string) (string, string, string, error) {
+
+	abs, err := filepath.Abs(configPath)
+
+	if err != nil {
+		return "", "", "", err
+	}
+
+	pathFile := strings.Split(abs, "/")
+	configFile := pathFile[len(pathFile)-1:]
+	var mainPath string
+
+	errPath := filepath.WalkDir(".", func(path string, d fs.DirEntry, e error) error {
+		if !d.IsDir() && d.Name() == configFile[0] {
+			mainPath = path
+		}
+		return nil
+	})
+
+	if errPath != nil {
+		log.Fatal(errPath)
+	}
+
+	sitePath := strings.Split(mainPath, "/")
+
+	return sitePath[0], configFile[0], mainPath, nil
 }
