@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/gammazero/workerpool"
 	"github.com/tdewolff/minify"
@@ -16,26 +17,26 @@ import (
 )
 
 type MinifyPlugin struct {
+	config *Config
 	minify     *minify.M
 	logger     *zap.Logger
-	mediaTypes map[string]string
 }
 
-func NewMinifyPlugin(logger *zap.Logger) *MinifyPlugin {
+func NewMinifyPlugin(config *Config, logger *zap.Logger) *MinifyPlugin {
 	m := minify.New()
 	m.AddFunc("text/css", css.Minify)
 	m.AddFunc("text/html", html.Minify)
 	m.AddFuncRegexp(regexp.MustCompile("^(application|text)/(x-)?(java|ecma)script$"), js.Minify)
 
 	return &MinifyPlugin{
+		config: config,
 		minify:     m,
 		logger:     logger,
-		mediaTypes: map[string]string{".html": "text/html", ".css": "text/css", ".js": "application/javascript"},
 	}
 }
 
 func (m MinifyPlugin) allowedMediaType(filename string) string {
-	return m.mediaTypes[filepath.Ext(filename)]
+	return m.getPluginsConfig()[filepath.Ext(filename)]
 }
 
 func (m MinifyPlugin) AfterGeneratedFiles(files []string) error {
@@ -88,4 +89,22 @@ func (m MinifyPlugin) minifyFiles(f, media string) error {
 
 	m.logger.Info(fmt.Sprintf("Minified: %s", f))
 	return nil
+}
+
+func (m MinifyPlugin) getPluginsConfig() map[string]string {
+	var plugincnfg = make(map[string]string)
+
+	mediaTypes := fmt.Sprintf("%v", m.config.Plugins["minify_plugin"]["media_types"])
+	cutMapping := strings.Replace(mediaTypes, "map[", "", -1)
+	cutMapping = strings.Replace(cutMapping, "]", "", -1)
+
+
+	for _, value := range strings.Split(cutMapping, " ") {
+		mediaTypesSplit := strings.Split(value, ":")
+
+		if len(mediaTypesSplit) > 1 {
+			plugincnfg[mediaTypesSplit[0]] = mediaTypesSplit[1]
+		}
+	}
+	return plugincnfg
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/gammazero/workerpool"
 	"go.uber.org/zap"
@@ -11,14 +12,12 @@ import (
 
 type StaticFilesPlugin struct {
 	config     *Config
-	allowedExt []string
 	logger     *zap.Logger
 }
 
-func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logger) *StaticFilesPlugin {
+func NewStaticFilesPlugin(config *Config, logger *zap.Logger) *StaticFilesPlugin {
 	return &StaticFilesPlugin{
 		config:     config,
-		allowedExt: allowedExt,
 		logger:     logger,
 	}
 }
@@ -26,9 +25,7 @@ func NewStaticFilesPlugin(config *Config, allowedExt []string, logger *zap.Logge
 func (s StaticFilesPlugin) AfterLoadFiles(files SiteFiles) error {
 	s.logger.Info("Start static files copy")
 
-	pluginList := s.getPluginsConfig()
-
-	s.logger.Info(fmt.Sprintf("%v", pluginList))
+	s.logger.Info(fmt.Sprintf("Extensions enabled: %v", s.getPluginsConfig()))
 
 	wp := workerpool.New(2)
 	for _, container := range files {
@@ -45,7 +42,7 @@ func (s StaticFilesPlugin) AfterLoadFiles(files SiteFiles) error {
 }
 
 func (s StaticFilesPlugin) copyStaticFile(container *FileContainer) error {
-	files := container.FilterExt(s.allowedExt)
+	files := container.FilterExt(s.getPluginsConfig())
 	for _, file := range files {
 		err := func() error {
 			if err := GenerateDir(container.OutputFilename(file)); err != nil {
@@ -89,15 +86,18 @@ func (s StaticFilesPlugin) copyStaticFile(container *FileContainer) error {
 	return nil
 }
 
-func (s StaticFilesPlugin) getPluginsConfig() []PluginOptions {
-	var pluginNameList []string
-	var pluginList []PluginOptions
+func (s StaticFilesPlugin) getPluginsConfig() []string{
+	var extensionList []string
 
-	for name, value := range s.config.Plugins {
-		pluginNameList = append(pluginNameList, name)
-		pluginList = append(pluginList, value)
+	extensions := fmt.Sprintf("%v,", s.config.Plugins["static_files"]["extensions"])
+
+	cutMapping := strings.Replace(extensions, "[",  "", -1)
+	cutMapping = strings.Replace(cutMapping, "]", "", -1)
+	cutMapping = strings.Replace(cutMapping, ",", "", -1)
+
+	for _, value := range strings.Split(cutMapping, " ") {
+		extensionList = append(extensionList, value)
 	}
 
-	s.logger.Info(fmt.Sprintf("Plugin List: %s", pluginNameList))
-	return pluginList
+	return extensionList
 }
