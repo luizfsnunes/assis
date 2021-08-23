@@ -2,18 +2,15 @@ package assis
 
 import (
 	"fmt"
-	"html/template"
-	"io/ioutil"
-	"net/mail"
-	"path/filepath"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/gammazero/workerpool"
 	"github.com/gomarkdown/markdown"
 	"github.com/gosimple/slug"
 	"go.uber.org/zap"
+	"html/template"
+	"io/ioutil"
+	"net/mail"
+	"path/filepath"
+	"strings"
 )
 
 type Tags []string
@@ -108,86 +105,6 @@ func NewArticlePlugin(config *Config, logger *zap.Logger) *ArticlePlugin {
 		name:      "markdown",
 		logger:    logger,
 	}
-}
-
-func (m ArticlePlugin) OnRegisterCustomFunction() map[string]interface{} {
-	return map[string]interface{}{
-		"articleCollection": m.articleCollection,
-		"pinCollection":     m.pinCollection,
-		"generateSearch":    m.generateSearch,
-		"tags":              m.tags,
-		"limit":             m.limit,
-		"orderByDate":       m.orderByDate,
-	}
-}
-
-func (m ArticlePlugin) generateSearch(filters []string) string {
-	return strings.Join(filters, ",")
-}
-
-func (m ArticlePlugin) tags(articles []Article) Tags {
-	allTags := map[string]string{}
-	for _, article := range articles {
-		for _, tag := range article.Tags {
-			if _, ok := allTags[tag]; !ok {
-				allTags[tag] = tag
-			}
-		}
-	}
-
-	tags := Tags{}
-	for _, tag := range allTags {
-		tags = append(tags, tag)
-	}
-	sort.Strings(tags)
-	return tags
-}
-
-func (m ArticlePlugin) getCollection(path string, pin bool) []Article {
-	for entry, collection := range m.files {
-		if entry == m.config.Content+path {
-			var out []Article
-			for _, f := range collection {
-				if f.Pin == pin && f.Published {
-					out = append(out, f)
-				}
-			}
-			return out
-		}
-	}
-	return []Article{}
-}
-
-func (m ArticlePlugin) articleCollection(path string) []Article {
-	return m.getCollection(path, false)
-}
-
-func (m ArticlePlugin) pinCollection(path string) []Article {
-	return m.getCollection(path, true)
-}
-
-func (m ArticlePlugin) limit(size int, list []Article) []Article {
-	if len(list) == 0 {
-		return []Article{}
-	}
-	if len(list) <= size {
-		return list
-	}
-	return list[:size]
-}
-
-func (m ArticlePlugin) orderByDate(dir string, list []Article) []Article {
-	tmpList := list
-	sort.Slice(tmpList, func(i, j int) bool {
-		d1, _ := time.Parse("2006-01-02", list[i].Date)
-		d2, _ := time.Parse("2006-01-02", list[j].Date)
-
-		if dir == "desc" {
-			return d1.Before(d2)
-		}
-		return d1.After(d2)
-	})
-	return tmpList
 }
 
 func (m ArticlePlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {

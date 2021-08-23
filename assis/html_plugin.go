@@ -18,24 +18,6 @@ func NewHTMLPlugin(config *Config, logger *zap.Logger) *HTMLPlugin {
 	return &HTMLPlugin{config: config, name: "html", logger: logger}
 }
 
-func (h HTMLPlugin) OnRegisterCustomFunction() map[string]interface{} {
-	return map[string]interface{}{
-		"truncate": h.Truncate,
-	}
-}
-
-func (h HTMLPlugin) Truncate(size int, str template.HTML) template.HTML {
-	s := string(str)
-	var numRunes = 0
-	for index, _ := range s {
-		numRunes++
-		if numRunes > size {
-			return template.HTML(s[:index] + "...")
-		}
-	}
-	return str
-}
-
 func (h HTMLPlugin) OnRender(t AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	h.logger.Info("Start HTML rendering")
 	wp := workerpool.New(2)
