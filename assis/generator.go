@@ -23,12 +23,12 @@ type Generator interface {
 }
 
 type SiteGenerator struct {
-	dispatcher    pluginDispatcher
+	dispatcher    PluginDispatcher
 	templates     Templates
 	assisTemplate AssisTemplate
 }
 
-func NewGenerator(templates Templates, dispatcher pluginDispatcher) Generator {
+func NewGenerator(templates Templates, dispatcher PluginDispatcher) Generator {
 	return SiteGenerator{
 		dispatcher:    dispatcher,
 		templates:     templates,

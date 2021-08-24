@@ -4,6 +4,7 @@ type PluginRender interface {
 	OnRender(AssisTemplate, SiteFiles, Templates) error
 }
 
+//go:generate mockery --name=PluginGeneratedFiles --case=snake
 type PluginGeneratedFiles interface {
 	AfterGeneratedFiles([]string) error
 }
@@ -49,11 +50,15 @@ func NewPluginRegistry(plugins ...interface{}) PluginRegistry {
 	return r
 }
 
-type pluginDispatcher struct {
+type PluginDispatcher struct {
 	registry PluginRegistry
 }
 
-func (r pluginDispatcher) DispatchPluginRender(assisTemplate AssisTemplate, siteFiles SiteFiles, templates Templates) error {
+func NewPluginDispatcher(registry PluginRegistry) PluginDispatcher {
+	return PluginDispatcher{registry: registry}
+}
+
+func (r PluginDispatcher) DispatchPluginRender(assisTemplate AssisTemplate, siteFiles SiteFiles, templates Templates) error {
 	for _, plugin := range r.registry.render {
 		if err := plugin.OnRender(assisTemplate, siteFiles, templates); err != nil {
 			return err
@@ -62,7 +67,7 @@ func (r pluginDispatcher) DispatchPluginRender(assisTemplate AssisTemplate, site
 	return nil
 }
 
-func (r pluginDispatcher) DispatchPluginCustomFunction() map[string]interface{} {
+func (r PluginDispatcher) DispatchPluginCustomFunction() map[string]interface{} {
 	funcMap := make(map[string]interface{}, len(r.registry.customFunction))
 	for _, plugin := range r.registry.customFunction {
 		for name, fun := range plugin.OnRegisterCustomFunction() {
@@ -72,7 +77,7 @@ func (r pluginDispatcher) DispatchPluginCustomFunction() map[string]interface{} 
 	return funcMap
 }
 
-func (r pluginDispatcher) DispatchPluginLoadFiles(files SiteFiles) error {
+func (r PluginDispatcher) DispatchPluginLoadFiles(files SiteFiles) error {
 	for _, plugin := range r.registry.loadFiles {
 		if err := plugin.AfterLoadFiles(files); err != nil {
 			return err
@@ -81,7 +86,7 @@ func (r pluginDispatcher) DispatchPluginLoadFiles(files SiteFiles) error {
 	return nil
 }
 
-func (r pluginDispatcher) DispatchPluginGeneratedFiles(files []string) error {
+func (r PluginDispatcher) DispatchPluginGeneratedFiles(files []string) error {
 	for _, plugin := range r.registry.generatedFiles {
 		if err := plugin.AfterGeneratedFiles(files); err != nil {
 			return err

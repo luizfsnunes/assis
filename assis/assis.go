@@ -113,7 +113,7 @@ func (s SiteFiles) Get(entry string) *FileContainer {
 type Assis struct {
 	config     *Config
 	templates  Templates
-	dispatcher pluginDispatcher
+	dispatcher PluginDispatcher
 	container  SiteFiles
 	logger     *zap.Logger
 }
@@ -126,7 +126,7 @@ func NewAssis(config *Config, registry PluginRegistry, logger *zap.Logger) Assis
 
 	return Assis{
 		config:     config,
-		dispatcher: pluginDispatcher{registry: registry},
+		dispatcher: PluginDispatcher{registry: registry},
 		container:  SiteFiles{},
 		logger:     logger,
 		templates:  NewTemplates(config),
